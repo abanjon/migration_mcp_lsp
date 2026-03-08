@@ -25,7 +25,7 @@ Options:
 This script writes:
   - <client>/.cursor/mcp.json
   - <client>/postgres-language-server.jsonc
-  - <client>/.envrc block (between managed markers)
+This script does not write <client>/.envrc.
 EOF
 }
 
@@ -123,6 +123,10 @@ MCP_JSON_PATH="${CLIENT_ROOT}/.cursor/mcp.json"
 PGLS_CONFIG_PATH="${CLIENT_ROOT}/postgres-language-server.jsonc"
 ENVRC_PATH="${CLIENT_ROOT}/.envrc"
 
+if [[ ! -f "${ENVRC_PATH}" ]]; then
+  fail "Missing ${ENVRC_PATH}. Create it first with PGSERVICE and PGROSERVICE exports."
+fi
+
 if [[ -f "${MCP_JSON_PATH}" && "${FORCE}" != "true" && "${DRY_RUN}" != "true" ]]; then
   fail "${MCP_JSON_PATH} exists. Re-run with --force to overwrite."
 elif [[ -f "${MCP_JSON_PATH}" && "${DRY_RUN}" == "true" ]]; then
@@ -162,45 +166,7 @@ EOF
 write_file "${MCP_JSON_PATH}" "${MCP_CONTENT}"
 write_file "${PGLS_CONFIG_PATH}" "${PGLS_CONTENT}"
 
-MANAGED_START="# >>> portable-lsp-mcp-toolkit >>>"
-MANAGED_END="# <<< portable-lsp-mcp-toolkit <<<"
-ENVRC_BLOCK="$(cat <<EOF
-${MANAGED_START}
-export PGSERVICE="${PGSERVICE_NAME}"
-export PGROSERVICE="${PGROSERVICE_NAME}"
-export PGAPPNAME="zed-${PGSERVICE_NAME}"
-export PGLSP_APPNAME="zed-${PGSERVICE_NAME}-lsp"
-export MCP_PGAPPNAME="cursor-${PGSERVICE_NAME}-mcp"
-export PGLSP_CONFIG="\$PWD/postgres-language-server.jsonc"
-export MCP_DEFAULT_LIMIT="50"
-export MCP_MAX_LIMIT="500"
-export MCP_STATEMENT_TIMEOUT_MS="30000"
-${MANAGED_END}
-EOF
-)"
-
-if [[ "${DRY_RUN}" == "true" ]]; then
-  if [[ -f "${ENVRC_PATH}" ]]; then
-    log "Would update managed block in ${ENVRC_PATH}"
-  else
-    log "Would create ${ENVRC_PATH}"
-  fi
-else
-  if [[ -f "${ENVRC_PATH}" ]]; then
-    TMP_FILE="$(mktemp "${TMPDIR:-/tmp}/envrc.XXXXXX")"
-    awk -v start="${MANAGED_START}" -v end="${MANAGED_END}" '
-      BEGIN { skip=0 }
-      $0==start { skip=1; next }
-      $0==end { skip=0; next }
-      skip==0 { print }
-    ' "${ENVRC_PATH}" > "${TMP_FILE}"
-    printf '\n%s\n' "${ENVRC_BLOCK}" >> "${TMP_FILE}"
-    mv "${TMP_FILE}" "${ENVRC_PATH}"
-  else
-    printf '%s\n' "${ENVRC_BLOCK}" > "${ENVRC_PATH}"
-  fi
-fi
-
 log "Bootstrap completed for: ${CLIENT_ROOT}"
 log "Next: run 'direnv allow \"${CLIENT_ROOT}\"' from your shell."
+log "Note: bootstrap-client.sh does not modify ${ENVRC_PATH}."
 log "In Zed, point SQL LSP binary to '${TOOLKIT_ROOT}/tools/lsp/run-pgls.sh' if not already configured."

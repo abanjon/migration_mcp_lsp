@@ -1,98 +1,188 @@
 # Portable LSP/MCP Toolkit
 
-Reusable, service-first PostgreSQL tooling for SQL linting (LSP) and read-only MCP access.
+Reusable, service-first PostgreSQL tooling for:
+- SQL linting/type checks in editors via Postgres Language Server (LSP)
+- read-only database access for Cursor MCP tools
 
-This toolkit is designed to be shared across client repositories via git submodule or subtree.
+This is intended to be shared across client repos (usually via git submodule).
 
-## Architecture
+## Quick Start (new client)
 
-- `tools/lsp/run-pgls.sh`
-  - Launches `postgres-language-server` through `direnv`.
-  - Resolves `PGROSERVICE` from `~/.pg_service.conf` + `~/.pgpass`.
-- `tools/postgres-readonly/run.sh`
-  - Launches a local stdio MCP server with read-only SQL guards.
-  - Uses `uv` when available, falls back to `python -m venv`.
-- `tools/lib/resolve_pg_env.py`
-  - Required adapter that converts libpq service + pgpass entries into explicit env vars.
-- `scripts/bootstrap-client.sh`
-  - Wires client `.envrc`, `.cursor/mcp.json`, and `postgres-language-server.jsonc`.
+Refer to docs/new-client-checklist.md for a step-by-step walkthrough of onboarding a new client repo to use this toolkit.
 
-## Credential Model (service-first)
+## How credentials work
 
-This toolkit does **not** require repo `.env` files.
+This toolkit does **not** require project `.env` files.  
+It uses:
+- project `.envrc` for service names
+- `~/.pg_service.conf` for connection metadata
+- `~/.pgpass` for passwords
 
-Expected inputs:
-- client repo `.envrc` exports `PGSERVICE` and `PGROSERVICE`
-- `~/.pg_service.conf` defines service connection metadata
-- `~/.pgpass` stores matching passwords
+`tools/lib/resolve_pg_env.py` is the adapter that converts service entries into explicit env vars for LSP/MCP processes.
 
-`resolve_pg_env.py` is intentionally required and should not be removed unless both launchers are redesigned.
+## What to put in `.envrc` (project repo)
 
-## Install in a Client Repo
+Minimum required:
 
-1. Add toolkit as submodule (recommended):
-   - `git submodule add <toolkit-repo-url> "XX - utils/portable-lsp-mcp-toolkit"`
-2. Run bootstrap:
-   - `bash "XX - utils/portable-lsp-mcp-toolkit/scripts/bootstrap-client.sh" --client-root "$PWD" --pgservice <admin_service> --pgroservice <readonly_service> --force`
-3. Allow direnv:
-   - `direnv allow`
-4. Zed setup:
-   - point SQL LSP binary path to `.../portable-lsp-mcp-toolkit/tools/lsp/run-pgls.sh`
+```bash
+export PGSERVICE="client_admin"
+export PGROSERVICE="client_ai_ro"
+```
 
-## Read-only Role Bootstrap
+Recommended full block:
 
-Use the helper to generate (and optionally apply) readonly-role SQL from the client `.envrc` service names:
+```bash
+export PGSERVICE="client"
+export PGROSERVICE="client_ai_ro"
+export PGAPPNAME="zed-client"
+export PGLSP_APPNAME="zed-client-lsp"
+export MCP_PGAPPNAME="cursor-client-mcp"
+export PGLSP_CONFIG="$PWD/postgres-language-server.jsonc"
+export MCP_DEFAULT_LIMIT="50"
+export MCP_MAX_LIMIT="500"
+export MCP_STATEMENT_TIMEOUT_MS="30000"
+```
 
-- Generate SQL only:
-  - `bash "XX - utils/portable-lsp-mcp-toolkit/scripts/setup-readonly-role.sh" --client-root "$PWD" --force`
-- Generate SQL and update `~/.pgpass`:
-  - `bash "XX - utils/portable-lsp-mcp-toolkit/scripts/setup-readonly-role.sh" --client-root "$PWD" --force --update-pgpass`
-- Generate + apply with admin service (`PGSERVICE`):
-  - `bash "XX - utils/portable-lsp-mcp-toolkit/scripts/setup-readonly-role.sh" --client-root "$PWD" --force --apply`
+Notes:
+- `PGSERVICE` is used for admin/setup operations (for example applying role SQL).
+- `PGROSERVICE` is used by LSP and MCP read-only paths.
+- After editing `.envrc`, run `direnv allow`.
 
-What it does:
-- reads `PGSERVICE` and `PGROSERVICE` via `direnv export bash`
-- resolves database/admin/readonly users from `~/.pg_service.conf`
-- generates SQL for role create/update + grants + default privileges
-- writes SQL to `XX - utils/generated/create_readonly_role.sql` in the client repo
+## What to put in `~/.pg_service.conf` (home dir)
 
-## Generated Client Files
+Create one admin service and one readonly service per client.
 
-- `.cursor/mcp.json` with MCP command pointing to toolkit `run.sh`
-- `postgres-language-server.jsonc` extending toolkit base config
-- `.envrc` managed block for service names, app names, and defaults
+Example:
 
-## Bootstrap Validation
+```ini
+[client_admin]
+host=example-host.rds.amazonaws.com
+port=5432
+dbname=client_database
+user=postgres
+sslmode=require
 
-Bootstrap checks:
-- `direnv` available
-- `uv` availability (warn-only by default)
+[client_ai_ro]
+host=example-host.rds.amazonaws.com
+port=5432
+dbname=client_database
+user=client_ai_readonly
+sslmode=require
+```
+
+Notes:
+- Service names must exactly match `.envrc` values for `PGSERVICE` and `PGROSERVICE`.
+- The readonly service user should be the readonly DB role.
+
+## What to put in `~/.pgpass` (home dir)
+
+Format:
+
+`host:port:dbname:user:password`
+
+Example matching the readonly service above:
+
+```text
+example-host.rds.amazonaws.com:5432:client_database:client_ai_readonly:your_password_here
+```
+
+You may also include an admin entry if you use `psql service=<admin_service>` without interactive password prompts.
+
+Security:
+- `~/.pgpass` must be mode `600`.
+- keep it local; do not commit to git.
+
+## Scripts and what they do
+
+### `scripts/bootstrap-client.sh`
+
+Purpose:
+- wire a client repo for LSP + MCP quickly
+
+What it checks:
+- `direnv` exists
 - `~/.pg_service.conf` exists
 - `~/.pgpass` exists
-- `PGROSERVICE` can be resolved for both LSP and MCP modes
+- `PGROSERVICE` resolves correctly for both LSP and MCP modes
+- warns if `uv` is missing (MCP can still use `python -m venv`)
 
-## New Client Checklist
+What it writes/updates:
+- `<client>/.cursor/mcp.json`
+- `<client>/postgres-language-server.jsonc`
+- does not modify `<client>/.envrc` (create this manually first)
 
-- Create read-only DB role and grants (see `tools/postgres-readonly/sql/create_readonly_role.sql`)
-- Add service entries to `~/.pg_service.conf`
-- Add matching entries to `~/.pgpass`
-- Bootstrap the repo
-- Confirm LSP loads and MCP `query` returns rows
+Commands:
+- dry run:
+  - `bash "XX - utils/portable-lsp-mcp-toolkit/scripts/bootstrap-client.sh" --client-root "$PWD" --pgservice <admin_service> --pgroservice <readonly_service> --dry-run`
+- apply:
+  - `bash "XX - utils/portable-lsp-mcp-toolkit/scripts/bootstrap-client.sh" --client-root "$PWD" --pgservice <admin_service> --pgroservice <readonly_service> --force`
+
+### `scripts/setup-readonly-role.sh`
+
+Purpose:
+- generate SQL to create/update the readonly role and grants from service config
+- optionally apply it
+- optionally update `~/.pgpass` for readonly user
+
+How it resolves values:
+- loads `.envrc` via `direnv export bash`
+- reads `PGSERVICE` + `PGROSERVICE`
+- looks both up in `~/.pg_service.conf`
+- derives database, host, port, readonly username, and default owner role
+
+What it writes:
+- SQL file in client repo:
+  - `<client>/XX - utils/generated/create_readonly_role.sql`
+
+Optional effects:
+- `--apply` runs SQL against `service=$PGSERVICE`
+- `--update-pgpass` upserts the readonly entry in `~/.pgpass`
+
+Commands:
+- generate SQL only:
+  - `bash "XX - utils/portable-lsp-mcp-toolkit/scripts/setup-readonly-role.sh" --client-root "$PWD" --force`
+- generate + apply:
+  - `bash "XX - utils/portable-lsp-mcp-toolkit/scripts/setup-readonly-role.sh" --client-root "$PWD" --force --apply`
+- generate + update pgpass + apply:
+  - `bash "XX - utils/portable-lsp-mcp-toolkit/scripts/setup-readonly-role.sh" --client-root "$PWD" --force --update-pgpass --apply`
+
+## LSP and MCP runtime scripts
+
+- `tools/lsp/run-pgls.sh`
+  - loads project env via `direnv`
+  - resolves readonly service creds via `resolve_pg_env.py`
+  - launches `postgres-language-server lsp-proxy`
+
+- `tools/postgres-readonly/run.sh`
+  - loads project env via `direnv`
+  - resolves readonly creds via `resolve_pg_env.py`
+  - bootstraps local `.venv` with `uv` (or venv/pip fallback)
+  - starts MCP server (`server.py`) over stdio
+
+## Required local dependencies
+
+- `direnv`
+- Python 3
+- `uv` (recommended)
+- `postgres-language-server` binary (or configured `PGLS_BIN`)
+- `psql` (needed for `setup-readonly-role.sh --apply`)
 
 ## Troubleshooting
 
 - `Service [...] not found`
-  - Add missing section to `~/.pg_service.conf`.
+  - missing entry in `~/.pg_service.conf` or service name mismatch with `.envrc`.
 - `No matching password found in ~/.pgpass`
-  - Add/update host:port:dbname:user:password entry.
-- MCP fails to start
-  - Ensure `direnv allow` was run and `PGROSERVICE` is exported by `.envrc`.
-- LSP connection errors
-  - Confirm read-only service credentials and network/TLS settings in libpq service.
+  - add/update matching readonly entry; or use `setup-readonly-role.sh --update-pgpass`.
+- `.envrc is blocked`
+  - run `direnv allow`.
+- MCP starts but queries fail auth
+  - verify readonly role password and `~/.pgpass` entry.
+- LSP not connecting
+  - verify Zed binary path points to toolkit `tools/lsp/run-pgls.sh`.
 
-## Versioning and Rollout
+## Versioning and rollout
 
-- Tag toolkit releases (`vX.Y.Z`) in the toolkit repo.
-- Pin each client submodule to a known-good tag/commit.
-- Pilot changes in one client first, then roll out to additional clients.
-- Keep `VERSION` updated alongside release tags.
+- Tag toolkit releases as `vX.Y.Z`.
+- Keep `VERSION` file aligned with release tags.
+- Pin client submodules to known-good tags/commits.
+- Roll out to one pilot client first, then expand.
