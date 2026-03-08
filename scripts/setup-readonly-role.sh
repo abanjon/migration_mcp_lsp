@@ -1,0 +1,262 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLIENT_ROOT="${PWD}"
+SCHEMA_NAME="public"
+OWNER_ROLE=""
+ROLE_PASSWORD=""
+OUTPUT_PATH=""
+APPLY=false
+FORCE=false
+UPDATE_PGPASS=false
+
+usage() {
+  cat <<'EOF'
+Usage:
+  setup-readonly-role.sh [options]
+
+Options:
+  --client-root <path>  Client repo root (default: current directory)
+  --schema <name>       Schema to grant (default: public)
+  --owner-role <role>   Role used in ALTER DEFAULT PRIVILEGES (default: admin service user)
+  --password <value>    Explicit readonly role password (default: random generated)
+  --output <path>       SQL output path (default: <client>/XX - utils/generated/create_readonly_role.sql)
+  --apply               Execute SQL immediately using service=$PGSERVICE
+  --update-pgpass       Upsert ~/.pgpass entry for the read-only service
+  --force               Overwrite existing SQL output file
+  -h, --help            Show help
+
+Environment contract:
+  - .envrc exports PGSERVICE and PGROSERVICE
+  - ~/.pg_service.conf contains both services
+EOF
+}
+
+log() {
+  printf '[readonly-role] %s\n' "$*"
+}
+
+fail() {
+  printf '[readonly-role] ERROR: %s\n' "$*" >&2
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --client-root)
+      shift
+      CLIENT_ROOT="${1:-}"
+      ;;
+    --schema)
+      shift
+      SCHEMA_NAME="${1:-}"
+      ;;
+    --owner-role)
+      shift
+      OWNER_ROLE="${1:-}"
+      ;;
+    --password)
+      shift
+      ROLE_PASSWORD="${1:-}"
+      ;;
+    --output)
+      shift
+      OUTPUT_PATH="${1:-}"
+      ;;
+    --apply)
+      APPLY=true
+      ;;
+    --update-pgpass)
+      UPDATE_PGPASS=true
+      ;;
+    --force)
+      FORCE=true
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      fail "Unknown argument: $1"
+      ;;
+  esac
+  shift
+done
+
+[[ -n "${CLIENT_ROOT}" ]] || fail "Missing --client-root value"
+[[ -d "${CLIENT_ROOT}" ]] || fail "Client root not found: ${CLIENT_ROOT}"
+[[ -f "${CLIENT_ROOT}/.envrc" ]] || fail "Missing ${CLIENT_ROOT}/.envrc"
+command -v direnv >/dev/null 2>&1 || fail "direnv is required"
+
+cd "${CLIENT_ROOT}"
+eval "$(DIRENV_LOG_FORMAT= direnv export bash 2>/dev/null)"
+
+: "${PGSERVICE:?PGSERVICE must be exported by .envrc}"
+: "${PGROSERVICE:?PGROSERVICE must be exported by .envrc}"
+
+SERVICE_JSON="$(
+  python3 - "${PGSERVICE}" "${PGROSERVICE}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+service_name = sys.argv[1]
+ro_service_name = sys.argv[2]
+service_file = Path.home() / ".pg_service.conf"
+if not service_file.exists():
+    raise SystemExit(f"Missing {service_file}")
+
+sections = {}
+current = ""
+for raw_line in service_file.read_text().splitlines():
+    line = raw_line.strip()
+    if not line or line.startswith("#") or line.startswith(";"):
+        continue
+    if line.startswith("[") and line.endswith("]"):
+        current = line[1:-1].strip()
+        sections.setdefault(current, {})
+        continue
+    if "=" in line and current:
+        key, value = line.split("=", 1)
+        sections[current][key.strip().lower()] = value.strip()
+
+if service_name not in sections:
+    raise SystemExit(f"Service [{service_name}] not found in {service_file}")
+if ro_service_name not in sections:
+    raise SystemExit(f"Service [{ro_service_name}] not found in {service_file}")
+
+admin = sections[service_name]
+ro = sections[ro_service_name]
+result = {
+    "database": admin.get("dbname", "").strip(),
+    "host": admin.get("host", "").strip(),
+    "port": admin.get("port", "5432").strip(),
+    "admin_user": admin.get("user", "").strip(),
+    "readonly_user": ro.get("user", "").strip(),
+}
+if not result["database"] or not result["readonly_user"] or not result["host"] or not result["port"]:
+    raise SystemExit("Could not resolve host/port/dbname/read-only user from ~/.pg_service.conf")
+
+print(json.dumps(result))
+PY
+)"
+
+DB_NAME="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["database"])' "${SERVICE_JSON}")"
+DB_HOST="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["host"])' "${SERVICE_JSON}")"
+DB_PORT="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["port"])' "${SERVICE_JSON}")"
+ADMIN_USER="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["admin_user"])' "${SERVICE_JSON}")"
+READONLY_USER="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["readonly_user"])' "${SERVICE_JSON}")"
+
+if [[ -z "${OWNER_ROLE}" ]]; then
+  OWNER_ROLE="${ADMIN_USER:-postgres}"
+fi
+
+if [[ -z "${ROLE_PASSWORD}" ]]; then
+  ROLE_PASSWORD="$(python3 - <<'PY'
+import secrets
+print(secrets.token_urlsafe(24))
+PY
+)"
+fi
+
+if [[ -z "${OUTPUT_PATH}" ]]; then
+  OUTPUT_PATH="${CLIENT_ROOT}/XX - utils/generated/create_readonly_role.sql"
+fi
+
+mkdir -p "$(dirname "${OUTPUT_PATH}")"
+if [[ -f "${OUTPUT_PATH}" && "${FORCE}" != "true" ]]; then
+  fail "Output file exists: ${OUTPUT_PATH} (use --force to overwrite)"
+fi
+
+SQL_CONTENT="$(cat <<EOF
+-- Generated by setup-readonly-role.sh
+-- Service context:
+--   PGSERVICE=${PGSERVICE}
+--   PGROSERVICE=${PGROSERVICE}
+--   database=${DB_NAME}
+--   readonly_user=${READONLY_USER}
+--   owner_role=${OWNER_ROLE}
+--   schema=${SCHEMA_NAME}
+
+DO \$\$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${READONLY_USER}') THEN
+        CREATE ROLE ${READONLY_USER}
+            LOGIN
+            NOSUPERUSER
+            NOCREATEDB
+            NOCREATEROLE
+            NOINHERIT
+            NOREPLICATION
+            NOBYPASSRLS
+            PASSWORD '${ROLE_PASSWORD}';
+    ELSE
+        ALTER ROLE ${READONLY_USER} WITH PASSWORD '${ROLE_PASSWORD}';
+    END IF;
+END
+\$\$;
+
+ALTER ROLE ${READONLY_USER} SET default_transaction_read_only = on;
+ALTER ROLE ${READONLY_USER} SET statement_timeout = '30s';
+ALTER ROLE ${READONLY_USER} SET idle_in_transaction_session_timeout = '15s';
+
+GRANT CONNECT ON DATABASE ${DB_NAME} TO ${READONLY_USER};
+GRANT USAGE ON SCHEMA ${SCHEMA_NAME} TO ${READONLY_USER};
+GRANT SELECT ON ALL TABLES IN SCHEMA ${SCHEMA_NAME} TO ${READONLY_USER};
+GRANT SELECT ON ALL SEQUENCES IN SCHEMA ${SCHEMA_NAME} TO ${READONLY_USER};
+
+ALTER DEFAULT PRIVILEGES FOR ROLE ${OWNER_ROLE} IN SCHEMA ${SCHEMA_NAME}
+GRANT SELECT ON TABLES TO ${READONLY_USER};
+EOF
+)"
+
+printf '%s\n' "${SQL_CONTENT}" > "${OUTPUT_PATH}"
+log "Wrote SQL to ${OUTPUT_PATH}"
+log "Generated password for ${READONLY_USER}: ${ROLE_PASSWORD}"
+log "Use --update-pgpass to write ~/.pgpass entry automatically."
+
+if [[ "${UPDATE_PGPASS}" == "true" ]]; then
+  python3 - "${DB_HOST}" "${DB_PORT}" "${DB_NAME}" "${READONLY_USER}" "${ROLE_PASSWORD}" <<'PY'
+from pathlib import Path
+import sys
+
+host, port, dbname, user, password = sys.argv[1:6]
+target = f"{host}:{port}:{dbname}:{user}:{password}"
+pgpass = Path.home() / ".pgpass"
+lines = []
+if pgpass.exists():
+    lines = pgpass.read_text().splitlines()
+
+prefix = f"{host}:{port}:{dbname}:{user}:"
+updated = False
+new_lines = []
+for line in lines:
+    if line.startswith(prefix):
+        if not updated:
+            new_lines.append(target)
+            updated = True
+    else:
+        new_lines.append(line)
+
+if not updated:
+    new_lines.append(target)
+
+pgpass.write_text("\n".join(new_lines).rstrip("\n") + "\n")
+pgpass.chmod(0o600)
+PY
+  log "Upserted ~/.pgpass entry for ${READONLY_USER} (${DB_HOST}:${DB_PORT}/${DB_NAME})"
+fi
+
+if [[ "${APPLY}" == "true" ]]; then
+  if command -v psql >/dev/null 2>&1; then
+    PSQL_BIN="$(command -v psql)"
+  elif [[ -x /opt/homebrew/opt/libpq/bin/psql ]]; then
+    PSQL_BIN="/opt/homebrew/opt/libpq/bin/psql"
+  else
+    fail "psql not found (install libpq or add psql to PATH)"
+  fi
+  log "Applying SQL using service=${PGSERVICE}"
+  "${PSQL_BIN}" "service=${PGSERVICE}" -v ON_ERROR_STOP=1 -f "${OUTPUT_PATH}"
+  log "SQL applied successfully."
+fi

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://pg-language-server.com/latest/schema.json",
+  "files": {
+    "include": ["**/*.sql"],
+    "ignore": ["**/vendor/**", "**/generated/**"]
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true
+    }
+  },
+  "typecheck": {
+    "searchPath": ["public"]
+  },
+  "format": {
+    "enabled": false
+  },
+  "db": {
+    "connTimeoutSecs": 10
+  }
+}

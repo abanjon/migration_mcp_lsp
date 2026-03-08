@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "postgres-readonly": {
+      "command": "/bin/bash",
+      "args": [
+        "__TOOLKIT_ROOT__/tools/postgres-readonly/run.sh"
+      ]
+    }
+  }
+}

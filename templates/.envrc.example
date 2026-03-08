@@ -1,0 +1,16 @@
+# Required service names resolved through ~/.pg_service.conf and ~/.pgpass
+export PGSERVICE="client_admin"
+export PGROSERVICE="client_readonly"
+
+# Optional app names for observability
+export PGAPPNAME="zed-client"
+export PGLSP_APPNAME="zed-client-lsp"
+export MCP_PGAPPNAME="cursor-client-mcp"
+
+# Optional LSP config path override
+export PGLSP_CONFIG="$PWD/postgres-language-server.jsonc"
+
+# Optional MCP tuning
+export MCP_DEFAULT_LIMIT="50"
+export MCP_MAX_LIMIT="500"
+export MCP_STATEMENT_TIMEOUT_MS="30000"

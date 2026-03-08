@@ -1,0 +1,6 @@
+{
+  "$schema": "https://pg-language-server.com/latest/schema.json",
+  "extends": [
+    "__TOOLKIT_ROOT__/tools/lsp/postgres-language-server.base.jsonc"
+  ]
+}
