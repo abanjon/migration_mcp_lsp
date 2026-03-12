@@ -4,7 +4,7 @@ Tier 1: Unit tests for tools/lib/resolve_pg_env.py
 Validates service loading, pgpass matching, and export emission
 using test fixtures instead of real credential files.
 
-Run: python -m pytest tests/lsp-insights/test_resolve_pg_env.py -v
+Run: python -m pytest tests/test_resolve_pg_env.py -v
 """
 
 import os
@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-TOOLKIT_ROOT = Path(__file__).resolve().parent.parent.parent
+TOOLKIT_ROOT = Path(__file__).resolve().parent.parent
 RESOLVER = TOOLKIT_ROOT / "tools" / "lib" / "resolve_pg_env.py"
 FIXTURES = TOOLKIT_ROOT / "tests" / "fixtures"
 

@@ -1,0 +1,19 @@
+---
+description: Use schema:// resources to discover tables and columns before writing SQL
+globs: "**/*.sql"
+alwaysApply: false
+---
+
+Before referencing a table or column in a SQL file, use the `postgres-readonly` MCP server to confirm it exists:
+
+- List all available tables and views:
+  ```
+  resource: schema://tables
+  ```
+
+- Get column names and types for a specific table:
+  ```
+  resource: schema://table/{table_name}
+  ```
+
+Do this before writing or editing any SQL that references schema objects you have not already confirmed.

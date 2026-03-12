@@ -3,7 +3,6 @@
 Reusable, service-first PostgreSQL tooling for:
 - SQL linting/type checks in editors via Postgres Language Server (LSP)
 - read-only database access for Cursor MCP tools
-- LSP-powered SQL intelligence (diagnostics, hover, completions) via MCP for AI agents
 
 This is intended to be shared across client repos (usually via git submodule).
 
@@ -38,7 +37,6 @@ export PGROSERVICE="client_ai_ro"
 export PGAPPNAME="zed-client"
 export PGLSP_APPNAME="zed-client-lsp"
 export MCP_PGAPPNAME="cursor-client-mcp"
-export MCP_LSPINSIGHTS_APPNAME="cursor-client-lsp-insights"
 export PGLSP_CONFIG="$PWD/postgres-language-server.jsonc"
 export MCP_DEFAULT_LIMIT="50"
 export MCP_MAX_LIMIT="500"
@@ -161,51 +159,12 @@ Commands:
   - bootstraps local `.venv` with `uv` (or venv/pip fallback)
   - starts MCP server (`server.py`) over stdio
 
-- `tools/lsp-insights/run.sh`
-  - loads project env via `direnv`
-  - resolves readonly creds via `resolve_pg_env.py`
-  - generates a runtime `mcpls.toml` config with PG credentials
-  - launches `mcpls` (LSP-to-MCP bridge) which spawns `postgres-language-server`
-  - exposes LSP intelligence as MCP tools for AI agents
-
-### LSP-Insights: supported MCP tools
-
-`mcpls` exposes 16 MCP tools. Postgres Language Server (pgls) only implements a
-subset of LSP methods, so many tools return "Method not found" (-32601). The
-table below reflects tested behavior as of pgls v0.1.x / mcpls v0.3.4:
-
-| MCP Tool | Status | Notes |
-|---|---|---|
-| `get_cached_diagnostics` | **Works** | Use this instead of `get_diagnostics`. Returns syntax/type errors after file is opened. |
-| `get_completions` | **Works** | Returns column names (Field kind). Table name completions may require schema introspection. |
-| `get_code_actions` | **Works** | Returns "Invalidate Schema Cache" action. |
-| `get_server_logs` | **Works** | Returns pgls log output. |
-| `get_server_messages` | **Works** | Returns pgls notification messages. |
-| `get_hover` | Partial | Implemented by pgls but may return empty contents depending on cursor position and schema state. |
-| `format_document` | Partial | Implemented by pgls but returns empty edits. Format is disabled in base config; enable in `postgres-language-server.base.jsonc` if desired. |
-| `get_diagnostics` | No | pgls uses push-model diagnostics, not pull. Use `get_cached_diagnostics` instead. |
-| `get_definition` | No | Not implemented by pgls (-32601). |
-| `get_document_symbols` | No | Not implemented by pgls (-32601). |
-| `get_references` | No | Not implemented by pgls (-32601). |
-| `rename_symbol` | No | Not implemented by pgls (-32601). |
-| `workspace_symbol_search` | No | Not implemented by pgls (-32601). |
-| `prepare_call_hierarchy` | No | Not implemented by pgls (-32601). |
-| `get_incoming_calls` | No | Requires `prepare_call_hierarchy`. |
-| `get_outgoing_calls` | No | Requires `prepare_call_hierarchy`. |
-
-The primary value today is **`get_cached_diagnostics`** (SQL syntax/type
-validation), **`get_completions`** (column/table suggestions), and
-**`get_code_actions`** (schema cache management). As pgls adds more LSP methods
-upstream, they will automatically become available through mcpls without changes
-to this toolkit.
-
 ## Required local dependencies
 
 - `direnv`
 - Python 3
 - `uv` (recommended)
 - `postgres-language-server` binary (or configured `PGLS_BIN`)
-- `mcpls` binary (for LSP-Insights; install via `tools/lsp-insights/install-mcpls.sh` which downloads our patched build, or `cargo install mcpls` for upstream)
 - `psql` (needed for `setup-readonly-role.sh --apply`)
 
 ## Troubleshooting
@@ -220,14 +179,6 @@ to this toolkit.
   - verify readonly role password and `~/.pgpass` entry.
 - LSP not connecting
   - verify Zed binary path points to toolkit `tools/lsp/run-pgls.sh`.
-- LSP-Insights: `get_hover` / `get_completions` return empty
-  - ensure `PGLSP_CONFIG` is set in `.envrc` and points to a valid `postgres-language-server.jsonc`.
-  - pgls needs schema introspection to provide rich results; verify DB connectivity.
-- LSP-Insights: "Method not found" (-32601)
-  - this is expected for unimplemented pgls methods (see tool support table above).
-- LSP-Insights: orphaned `postgres-language-server` processes
-  - if mcpls is killed without clean shutdown, child pgls processes may become orphaned.
-  - clean up with: `pkill -9 -f "postgres-language-server"`
 
 ## Versioning and rollout
 

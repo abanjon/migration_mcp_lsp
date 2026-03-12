@@ -109,12 +109,6 @@ if ! have_cmd postgres-language-server; then
   fi
 fi
 
-if ! have_cmd mcpls; then
-  if [[ ! -x "${TOOLKIT_ROOT}/tools/lsp-insights/bin/mcpls" ]]; then
-    log "mcpls not found. Run tools/lsp-insights/install-mcpls.sh or set MCPLS_BIN to enable LSP-Insights MCP server"
-  fi
-fi
-
 if ! python3 "${TOOLKIT_ROOT}/tools/lib/resolve_pg_env.py" --service "${PGROSERVICE_NAME}" --mode lsp >/dev/null; then
   fail "Failed to resolve PGROSERVICE=${PGROSERVICE_NAME} via ~/.pg_service.conf + ~/.pgpass"
 fi
@@ -140,7 +134,7 @@ for var in PGSERVICE PGROSERVICE PGLSP_CONFIG; do
     ENVRC_WARNINGS+=("  missing required: ${var}")
   fi
 done
-for var in PGAPPNAME PGLSP_APPNAME MCP_PGAPPNAME MCP_LSPINSIGHTS_APPNAME; do
+for var in PGAPPNAME PGLSP_APPNAME MCP_PGAPPNAME; do
   if ! grep -q "export ${var}=" "${ENVRC_PATH}" 2>/dev/null; then
     ENVRC_WARNINGS+=("  missing recommended: ${var}")
   fi
@@ -173,12 +167,6 @@ MCP_CONTENT="$(cat <<EOF
       "args": [
         "${TOOLKIT_ROOT}/tools/postgres-readonly/run.sh"
       ]
-    },
-    "postgres-lsp-insights": {
-      "command": "/bin/bash",
-      "args": [
-        "${TOOLKIT_ROOT}/tools/lsp-insights/run.sh"
-      ]
     }
   }
 }
@@ -197,6 +185,27 @@ EOF
 
 write_file "${MCP_JSON_PATH}" "${MCP_CONTENT}"
 write_file "${PGLS_CONFIG_PATH}" "${PGLS_CONTENT}"
+
+# --- Copy Cursor rule templates ---
+RULES_SRC="${TOOLKIT_ROOT}/templates/.cursor/rules"
+RULES_DEST="${CLIENT_ROOT}/.cursor/rules"
+if [[ -d "${RULES_SRC}" ]]; then
+  if [[ "${DRY_RUN}" == "true" ]]; then
+    log "Would copy Cursor rules from ${RULES_SRC} to ${RULES_DEST}"
+  else
+    mkdir -p "${RULES_DEST}"
+    for rule_file in "${RULES_SRC}"/*.mdc; do
+      [[ -f "${rule_file}" ]] || continue
+      dest_file="${RULES_DEST}/$(basename "${rule_file}")"
+      if [[ -f "${dest_file}" && "${FORCE}" != "true" ]]; then
+        log "Skipping existing rule: ${dest_file} (use --force to overwrite)"
+      else
+        cp "${rule_file}" "${dest_file}"
+        log "Wrote ${dest_file}"
+      fi
+    done
+  fi
+fi
 
 log "Bootstrap completed for: ${CLIENT_ROOT}"
 log "Next: run 'direnv allow \"${CLIENT_ROOT}\"' from your shell."

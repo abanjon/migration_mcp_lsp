@@ -16,7 +16,6 @@ export PGROSERVICE="client_ai_ro"
 export PGAPPNAME="zed-client"
 export PGLSP_APPNAME="zed-client-lsp"
 export MCP_PGAPPNAME="cursor-client-mcp"
-export MCP_LSPINSIGHTS_APPNAME="cursor-client-lsp-insights"
 export PGLSP_CONFIG="$PWD/postgres-language-server.jsonc"
 export MCP_DEFAULT_LIMIT="50"
 export MCP_MAX_LIMIT="500"
@@ -65,24 +64,13 @@ bash "XX - utils/portable-lsp-mcp-toolkit/scripts/bootstrap-client.sh" \
   --force
 ```
 
-## 6) Install mcpls for LSP-Insights (optional but recommended)
-
-```bash
-bash "XX - utils/portable-lsp-mcp-toolkit/tools/lsp-insights/install-mcpls.sh"
-```
-
-This installs the `mcpls` binary that bridges Postgres Language Server intelligence
-to Cursor's AI agent via MCP. If you already have `mcpls` on your PATH or prefer
-`cargo install mcpls`, this step is optional.
-
-
-## 7) Approve direnv
+## 6) Approve direnv
 
 ```bash
 direnv allow
 ```
 
-## 8) Configure Zed SQL LSP binary
+## 7) Configure Zed SQL LSP binary
 
 Set this path in Zed settings:
 
@@ -90,7 +78,7 @@ Set this path in Zed settings:
 .../XX - utils/portable-lsp-mcp-toolkit/tools/lsp/run-pgls.sh
 ```
 
-## 9) Smoke tests
+## 8) Smoke tests
 
 ```bash
 # Confirm readonly login works
@@ -100,7 +88,7 @@ psql "service=client_ai_ro" -c "select current_user, current_database();"
 psql "service=client_ai_ro" -c "create table _should_fail(id int);"
 ```
 
-## 10) Rollout hygiene
+## 9) Rollout hygiene
 
 ```bash
 cd "XX - utils/portable-lsp-mcp-toolkit"
@@ -132,11 +120,6 @@ bash "XX - utils/portable-lsp-mcp-toolkit/scripts/bootstrap-client.sh" \
 # 3. Check .envrc for missing vars (bootstrap will warn you)
 #    Add any missing recommended vars from templates/.envrc.example
 
-# 4. Install/update mcpls binary
-bash "XX - utils/portable-lsp-mcp-toolkit/tools/lsp-insights/install-mcpls.sh"
-#    (To force reinstall, remove bin/mcpls first:
-#     rm "XX - utils/portable-lsp-mcp-toolkit/tools/lsp-insights/bin/mcpls")
-
-# 5. Re-allow direnv and restart Cursor
+# 4. Re-allow direnv and restart Cursor
 direnv allow
 ```

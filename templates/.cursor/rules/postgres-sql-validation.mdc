@@ -1,0 +1,17 @@
+---
+description: Use EXPLAIN via MCP query tool to validate SQL before applying it
+globs: "**/*.sql"
+alwaysApply: false
+---
+
+When editing a SQL file, validate non-trivial queries using the `postgres-readonly` MCP server before finalizing:
+
+```
+tool: query
+sql: EXPLAIN <your query here>
+```
+
+`EXPLAIN` runs read-only and will catch syntax errors, missing tables, and invalid column references without executing the query. Use it when:
+- Writing a new SELECT or WITH query
+- Modifying a WHERE clause or JOIN condition
+- Referencing columns you have not yet confirmed via `schema://table/{table_name}`
