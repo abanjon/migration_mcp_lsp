@@ -6,6 +6,7 @@ export PGROSERVICE="client_readonly"
 export PGAPPNAME="zed-client"
 export PGLSP_APPNAME="zed-client-lsp"
 export MCP_PGAPPNAME="cursor-client-mcp"
+export MCP_LSPINSIGHTS_APPNAME="cursor-client-lsp-insights"
 
 # Optional LSP config path override
 export PGLSP_CONFIG="$PWD/postgres-language-server.jsonc"

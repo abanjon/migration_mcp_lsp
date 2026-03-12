@@ -5,6 +5,12 @@
       "args": [
         "__TOOLKIT_ROOT__/tools/postgres-readonly/run.sh"
       ]
+    },
+    "postgres-lsp-insights": {
+      "command": "/bin/bash",
+      "args": [
+        "__TOOLKIT_ROOT__/tools/lsp-insights/run.sh"
+      ]
     }
   }
 }

@@ -109,6 +109,12 @@ if ! have_cmd postgres-language-server; then
   fi
 fi
 
+if ! have_cmd mcpls; then
+  if [[ ! -x "${TOOLKIT_ROOT}/tools/lsp-insights/bin/mcpls" ]]; then
+    log "mcpls not found. Run tools/lsp-insights/install-mcpls.sh or set MCPLS_BIN to enable LSP-Insights MCP server"
+  fi
+fi
+
 if ! python3 "${TOOLKIT_ROOT}/tools/lib/resolve_pg_env.py" --service "${PGROSERVICE_NAME}" --mode lsp >/dev/null; then
   fail "Failed to resolve PGROSERVICE=${PGROSERVICE_NAME} via ~/.pg_service.conf + ~/.pgpass"
 fi
@@ -146,6 +152,12 @@ MCP_CONTENT="$(cat <<EOF
       "command": "/bin/bash",
       "args": [
         "${TOOLKIT_ROOT}/tools/postgres-readonly/run.sh"
+      ]
+    },
+    "postgres-lsp-insights": {
+      "command": "/bin/bash",
+      "args": [
+        "${TOOLKIT_ROOT}/tools/lsp-insights/run.sh"
       ]
     }
   }

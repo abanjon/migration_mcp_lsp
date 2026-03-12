@@ -3,6 +3,7 @@
 Reusable, service-first PostgreSQL tooling for:
 - SQL linting/type checks in editors via Postgres Language Server (LSP)
 - read-only database access for Cursor MCP tools
+- LSP-powered SQL intelligence (diagnostics, hover, completions) via MCP for AI agents
 
 This is intended to be shared across client repos (usually via git submodule).
 
@@ -37,6 +38,7 @@ export PGROSERVICE="client_ai_ro"
 export PGAPPNAME="zed-client"
 export PGLSP_APPNAME="zed-client-lsp"
 export MCP_PGAPPNAME="cursor-client-mcp"
+export MCP_LSPINSIGHTS_APPNAME="cursor-client-lsp-insights"
 export PGLSP_CONFIG="$PWD/postgres-language-server.jsonc"
 export MCP_DEFAULT_LIMIT="50"
 export MCP_MAX_LIMIT="500"
@@ -159,12 +161,20 @@ Commands:
   - bootstraps local `.venv` with `uv` (or venv/pip fallback)
   - starts MCP server (`server.py`) over stdio
 
+- `tools/lsp-insights/run.sh`
+  - loads project env via `direnv`
+  - resolves readonly creds via `resolve_pg_env.py`
+  - generates a runtime `mcpls.toml` config with PG credentials
+  - launches `mcpls` (LSP-to-MCP bridge) which spawns `postgres-language-server`
+  - exposes LSP intelligence (diagnostics, hover, completions, code actions, formatting, symbols) as MCP tools for AI agents
+
 ## Required local dependencies
 
 - `direnv`
 - Python 3
 - `uv` (recommended)
 - `postgres-language-server` binary (or configured `PGLS_BIN`)
+- `mcpls` binary (for LSP-Insights; install via `tools/lsp-insights/install-mcpls.sh` or `cargo install mcpls`)
 - `psql` (needed for `setup-readonly-role.sh --apply`)
 
 ## Troubleshooting

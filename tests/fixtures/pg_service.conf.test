@@ -1,0 +1,14 @@
+# Test pg_service.conf for unit tests (not real credentials)
+[test_readonly]
+host=localhost
+port=5432
+dbname=testdb
+user=test_ro_user
+sslmode=disable
+
+[test_admin]
+host=localhost
+port=5432
+dbname=testdb
+user=test_admin_user
+sslmode=disable

@@ -1,0 +1,3 @@
+# Test pgpass for unit tests (not real credentials)
+localhost:5432:testdb:test_ro_user:test_ro_password
+localhost:5432:testdb:test_admin_user:test_admin_password

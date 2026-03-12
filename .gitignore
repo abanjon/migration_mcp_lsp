@@ -2,3 +2,9 @@
 **/.venv/
 **/__pycache__/
 **/.pytest_cache/
+
+# LSP-Insights runtime (generated config with credentials)
+tools/lsp-insights/.runtime/
+
+# LSP-Insights local binary install
+tools/lsp-insights/bin/
