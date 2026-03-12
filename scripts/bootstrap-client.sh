@@ -133,6 +133,26 @@ if [[ ! -f "${ENVRC_PATH}" ]]; then
   fail "Missing ${ENVRC_PATH}. Create it first with PGSERVICE and PGROSERVICE exports."
 fi
 
+# --- Check .envrc for recommended env vars ---
+ENVRC_WARNINGS=()
+for var in PGSERVICE PGROSERVICE PGLSP_CONFIG; do
+  if ! grep -q "export ${var}=" "${ENVRC_PATH}" 2>/dev/null; then
+    ENVRC_WARNINGS+=("  missing required: ${var}")
+  fi
+done
+for var in PGAPPNAME PGLSP_APPNAME MCP_PGAPPNAME MCP_LSPINSIGHTS_APPNAME; do
+  if ! grep -q "export ${var}=" "${ENVRC_PATH}" 2>/dev/null; then
+    ENVRC_WARNINGS+=("  missing recommended: ${var}")
+  fi
+done
+if [[ ${#ENVRC_WARNINGS[@]} -gt 0 ]]; then
+  log "WARNING: .envrc is missing some variables:"
+  for w in "${ENVRC_WARNINGS[@]}"; do
+    log "${w}"
+  done
+  log "See templates/.envrc.example for the full recommended block."
+fi
+
 if [[ -f "${MCP_JSON_PATH}" && "${FORCE}" != "true" && "${DRY_RUN}" != "true" ]]; then
   fail "${MCP_JSON_PATH} exists. Re-run with --force to overwrite."
 elif [[ -f "${MCP_JSON_PATH}" && "${DRY_RUN}" == "true" ]]; then
