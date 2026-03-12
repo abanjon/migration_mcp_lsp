@@ -17,6 +17,14 @@ git submodule update --remote --merge "XX - utils/portable-lsp-mcp-toolkit"
 
 `--remote` fetches from the submodule's upstream and moves the pointer to the latest commit on its tracking branch (usually `main`).
 
+### Clear the Python bytecode cache
+
+Always do this after a submodule update. `git submodule update` resets file timestamps, which can cause Python to use stale `.pyc` files and the MCP server to appear unchanged to Cursor.
+
+```bash
+rm -rf "XX - utils/portable-lsp-mcp-toolkit/tools/postgres-readonly/__pycache__"
+```
+
 ### Or pin to a specific tag or commit
 
 ```bash

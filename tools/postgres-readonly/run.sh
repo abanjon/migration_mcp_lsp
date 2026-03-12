@@ -62,4 +62,4 @@ if [[ ! -f "${BOOTSTRAP_MARKER}" || "${SCRIPT_DIR}/requirements.txt" -nt "${BOOT
   touch "${BOOTSTRAP_MARKER}"
 fi
 
-exec "${VENV_DIR}/bin/python" "${SCRIPT_DIR}/server.py"
+exec "${VENV_DIR}/bin/python" -B "${SCRIPT_DIR}/server.py"
