@@ -1,14 +1,20 @@
 ---
-description: Check information_schema.columns before assuming a column exists on a table
+description: Check column names and types before assuming they exist on a table
 globs: "**/*.sql"
 alwaysApply: false
 ---
 
-Before assuming a column exists on a table, verify it using the `postgres-readonly` MCP server:
+Before assuming a column exists on a table, verify it using the `postgres-readonly` MCP server.
 
+**Preferred: use the MCP resource** (faster, returns PK/FK info too):
+```
+resource: schema://table/{table_name}
+```
+
+**Fallback: use `information_schema.columns`** when you need defaults, character limits, or cross-schema lookup by condition:
 ```
 tool: query
-sql: SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '<table_name>' ORDER BY ordinal_position
+sql: SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = '<table_name>' ORDER BY ordinal_position
 ```
 
-Prefer `schema://table/{table_name}` as a faster alternative when the MCP resource is available. Use `information_schema.columns` when you need data types, nullability, defaults, or cross-schema lookups.
+Use the fallback only if the MCP resource is unavailable or you need fields it does not expose.

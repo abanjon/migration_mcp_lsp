@@ -1,5 +1,5 @@
 ---
-description: Use EXPLAIN via MCP query tool to validate SQL before applying it
+description: Use EXPLAIN via MCP query tool to validate complex SQL before applying it
 globs: "**/*.sql"
 alwaysApply: false
 ---
@@ -11,7 +11,17 @@ tool: query
 sql: EXPLAIN <your query here>
 ```
 
-`EXPLAIN` runs read-only and will catch syntax errors, missing tables, and invalid column references without executing the query. Use it when:
-- Writing a new SELECT or WITH query
-- Modifying a WHERE clause or JOIN condition
+`EXPLAIN` runs read-only and will catch syntax errors, missing tables, and invalid column references without executing the query.
+
+**Use EXPLAIN when:**
+- Writing a new query with JOINs or subqueries
+- Modifying a complex WHERE clause with multiple conditions
 - Referencing columns you have not yet confirmed via `schema://table/{table_name}`
+- Suspecting a query might be slow (check for Seq Scans on large tables)
+
+**Do NOT use EXPLAIN for trivial queries** such as:
+- `SELECT * FROM table LIMIT 10`
+- Single-table lookups with a single equality condition
+- Queries where you have already verified all columns and table names
+
+`EXPLAIN ANALYZE` is blocked — it executes the query and is not available.

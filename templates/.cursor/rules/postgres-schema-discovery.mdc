@@ -1,19 +1,27 @@
 ---
-description: Use schema:// resources to discover tables and columns before writing SQL
+description: Use schema:// resources and search_tables to discover tables and columns before writing SQL
 globs: "**/*.sql"
 alwaysApply: false
 ---
 
-Before referencing a table or column in a SQL file, use the `postgres-readonly` MCP server to confirm it exists:
+Before referencing a table or column in a SQL file, use the `postgres-readonly` MCP server to confirm it exists.
 
-- List all available tables and views:
-  ```
-  resource: schema://tables
-  ```
+**When you know part of a table name — use `search_tables` (preferred):**
+```
+tool: search_tables
+pattern: %order%
+```
+Returns matching tables with row estimates. Supports SQL ILIKE wildcards (`%`, `_`).
 
-- Get column names and types for a specific table:
-  ```
-  resource: schema://table/{table_name}
-  ```
+**When you already know the exact table name — get its columns, PK, and FK:**
+```
+resource: schema://table/{table_name}
+```
+
+**`schema://tables` — use sparingly on large schemas:**
+```
+resource: schema://tables
+```
+Lists every table and view in the database with row estimates. Avoid on schemas with 50+ tables — prefer `search_tables` to narrow results first.
 
 Do this before writing or editing any SQL that references schema objects you have not already confirmed.

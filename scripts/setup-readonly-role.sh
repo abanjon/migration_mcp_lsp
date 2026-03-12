@@ -202,6 +202,11 @@ ALTER ROLE ${READONLY_USER} SET statement_timeout = '30s';
 ALTER ROLE ${READONLY_USER} SET idle_in_transaction_session_timeout = '15s';
 
 GRANT CONNECT ON DATABASE ${DB_NAME} TO ${READONLY_USER};
+-- Explicitly revoke the ability to create objects or temporary tables,
+-- even if the role somehow inherits broader privileges in the future.
+REVOKE CREATE ON SCHEMA ${SCHEMA_NAME} FROM ${READONLY_USER};
+REVOKE TEMPORARY ON DATABASE ${DB_NAME} FROM ${READONLY_USER};
+
 GRANT USAGE ON SCHEMA ${SCHEMA_NAME} TO ${READONLY_USER};
 GRANT SELECT ON ALL TABLES IN SCHEMA ${SCHEMA_NAME} TO ${READONLY_USER};
 GRANT SELECT ON ALL SEQUENCES IN SCHEMA ${SCHEMA_NAME} TO ${READONLY_USER};

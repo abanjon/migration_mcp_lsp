@@ -99,27 +99,3 @@ Pin submodule to a release tag/commit in each client repo.
 
 ---
 
-## Upgrading an existing client
-
-When the toolkit submodule is updated, existing clients may need manual steps:
-
-```bash
-# 1. Update the submodule
-cd "XX - utils/portable-lsp-mcp-toolkit"
-git fetch origin
-git checkout origin/main   # or a specific tag
-cd ../..
-
-# 2. Re-run bootstrap to update .cursor/mcp.json and postgres-language-server.jsonc
-bash "XX - utils/portable-lsp-mcp-toolkit/scripts/bootstrap-client.sh" \
-  --client-root "$PWD" \
-  --pgservice <admin_service> \
-  --pgroservice <readonly_service> \
-  --force
-
-# 3. Check .envrc for missing vars (bootstrap will warn you)
-#    Add any missing recommended vars from templates/.envrc.example
-
-# 4. Re-allow direnv and restart Cursor
-direnv allow
-```

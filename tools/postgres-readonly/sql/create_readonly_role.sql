@@ -22,6 +22,11 @@ ALTER ROLE client_mcp_readonly SET statement_timeout = '30s';
 ALTER ROLE client_mcp_readonly SET idle_in_transaction_session_timeout = '15s';
 
 GRANT CONNECT ON DATABASE client_database TO client_mcp_readonly;
+-- Explicitly revoke the ability to create objects or temporary tables,
+-- even if the role somehow inherits broader privileges in the future.
+REVOKE CREATE ON SCHEMA public FROM client_mcp_readonly;
+REVOKE TEMPORARY ON DATABASE client_database FROM client_mcp_readonly;
+
 GRANT USAGE ON SCHEMA public TO client_mcp_readonly;
 
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO client_mcp_readonly;
