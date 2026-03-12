@@ -1,7 +1,7 @@
 from typing import List
 
 from config import AppConfig
-from db import get_foreign_keys, get_primary_keys, get_table_columns, list_tables
+from db import get_foreign_keys, get_indexes, get_primary_keys, get_table_columns, list_tables
 
 
 def render_tables_resource(config: AppConfig) -> str:
@@ -33,6 +33,7 @@ def render_table_resource(config: AppConfig, table_name: str) -> str:
 
     pks = get_primary_keys(config, schema, table)
     fks = get_foreign_keys(config, schema, table)
+    indexes = get_indexes(config, schema, table)
     pk_set = set(pks)
 
     lines: List[str] = [f"# {schema}.{table}", ""]
@@ -66,5 +67,20 @@ def render_table_resource(config: AppConfig, table_name: str) -> str:
         for fk in fks:
             ref = f"{fk['foreign_schema']}.{fk['foreign_table']}({fk['foreign_column']})"
             lines.append(f"| {fk['column_name']} | {ref} |")
+
+    # Indexes
+    lines.append("")
+    if indexes:
+        lines.append("## Indexes")
+        lines.append("")
+        lines.append("| index | type | unique | columns | definition |")
+        lines.append("|---|---|---|---|---|")
+        for idx in indexes:
+            unique = "YES" if idx["is_unique"] else ""
+            lines.append(
+                f"| {idx['index_name']} | {idx['index_type']} | {unique} | {idx['columns']} | {idx['index_def']} |"
+            )
+    else:
+        lines.append("**Indexes:** none")
 
     return "\n".join(lines)

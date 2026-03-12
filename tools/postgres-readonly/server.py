@@ -41,6 +41,12 @@ params : list, optional
     Pass values here instead of interpolating them into the SQL string
     to avoid injection risks and improve plan caching.
     Note: $1/$2 PostgreSQL-style placeholders are NOT supported here.
+    IMPORTANT: If your SQL contains a literal % character (e.g. LIKE '%foo%',
+    ILIKE '%%', modulo operator), you MUST double every % to %% when not using
+    params, because psycopg3 treats a single % as a placeholder marker.
+    Example: sql="SELECT * FROM t WHERE name ILIKE '%%jones%%'"
+    If you pass the pattern via params instead, use a single %:
+    sql="SELECT * FROM t WHERE name ILIKE %s", params=["%jones%"]
 limit : int, default 50
     Maximum rows to return (server cap: MCP_MAX_LIMIT, default 500). Use
     pagination to walk large result sets.
@@ -87,6 +93,7 @@ pattern : str
       %  matches any sequence of characters
       _  matches any single character
     Examples: '%order%', 'public.inv%', 'line_item'
+    Avoid bare '%' — it returns every table and wastes context on large schemas.
 
 Response
 --------

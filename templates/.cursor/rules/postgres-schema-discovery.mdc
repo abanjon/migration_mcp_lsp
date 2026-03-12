@@ -12,6 +12,7 @@ tool: search_tables
 pattern: %order%
 ```
 Returns matching tables with row estimates. Supports SQL ILIKE wildcards (`%`, `_`).
+Use a specific pattern — do NOT use bare `%` as the pattern, it returns every table and defeats the purpose.
 
 **When you already know the exact table name — get its columns, PK, and FK:**
 ```

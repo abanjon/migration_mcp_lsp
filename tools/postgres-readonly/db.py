@@ -199,3 +199,38 @@ def get_foreign_keys(config: AppConfig, schema: str, table: str) -> List[Dict[st
     with conn.cursor() as cur:
         cur.execute(sql, [schema, table])
         return cur.fetchall()
+
+
+def get_indexes(config: AppConfig, schema: str, table: str) -> List[Dict[str, Any]]:
+    """Return indexes defined on the given table."""
+    sql = """
+        SELECT
+            ix.relname                          AS index_name,
+            am.amname                           AS index_type,
+            ix.reloptions                       AS options,
+            pg_get_indexdef(i.indexrelid)       AS index_def,
+            i.indisunique                       AS is_unique,
+            i.indisprimary                      AS is_primary,
+            array_to_string(
+                array_agg(a.attname ORDER BY x.ordinality), ', '
+            )                                   AS columns
+        FROM pg_index i
+        JOIN pg_class t  ON t.oid = i.indrelid
+        JOIN pg_class ix ON ix.oid = i.indexrelid
+        JOIN pg_am am    ON am.oid = ix.relam
+        JOIN pg_namespace n ON n.oid = t.relnamespace
+        JOIN LATERAL unnest(i.indkey) WITH ORDINALITY AS x(attnum, ordinality)
+          ON TRUE
+        LEFT JOIN pg_attribute a
+               ON a.attrelid = t.oid
+              AND a.attnum = x.attnum
+              AND a.attnum > 0
+        WHERE n.nspname = %s
+          AND t.relname = %s
+        GROUP BY ix.relname, am.amname, ix.reloptions, i.indexrelid, i.indisunique, i.indisprimary
+        ORDER BY i.indisprimary DESC, ix.relname
+    """
+    conn = _get_conn(config)
+    with conn.cursor() as cur:
+        cur.execute(sql, [schema, table])
+        return cur.fetchall()
