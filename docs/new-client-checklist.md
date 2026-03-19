@@ -88,14 +88,6 @@ psql "service=client_ai_ro" -c "select current_user, current_database();"
 psql "service=client_ai_ro" -c "create table _should_fail(id int);"
 ```
 
-## 9) Rollout hygiene
 
-```bash
-cd "XX - utils/portable-lsp-mcp-toolkit"
-git fetch --tags
-```
 
-Pin submodule to a release tag/commit in each client repo.
-
----
 
