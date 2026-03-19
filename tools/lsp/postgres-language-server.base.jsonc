@@ -1,3 +1,4 @@
+
 {
   "$schema": "https://pg-language-server.com/latest/schema.json",
   "files": {
@@ -7,7 +8,10 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "recommended": true,
+      "safety": {
+        "runningStatementWhileHoldingAccessExclusive": "off"
+      }
     }
   },
   "typecheck": {
