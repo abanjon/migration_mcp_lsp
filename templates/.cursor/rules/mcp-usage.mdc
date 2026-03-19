@@ -1,0 +1,6 @@
+---
+description: Show and discuss queries you are going to run using the MCP before running them.
+alwaysApply: TRUE
+---
+
+After you have used the mcp to search for tables and the correct schema, show the queries you plan to run and talk through your approach.
