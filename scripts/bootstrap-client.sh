@@ -24,6 +24,7 @@ Options:
 
 This script writes:
   - <client>/.cursor/mcp.json
+  - <client>/opencode.json
   - <client>/postgres-language-server.jsonc
 This script does not write <client>/.envrc.
 EOF
@@ -120,6 +121,7 @@ fi
 mkdir -p "${CLIENT_ROOT}/.cursor"
 
 MCP_JSON_PATH="${CLIENT_ROOT}/.cursor/mcp.json"
+OPENCODE_JSON_PATH="${CLIENT_ROOT}/opencode.json"
 PGLS_CONFIG_PATH="${CLIENT_ROOT}/postgres-language-server.jsonc"
 ENVRC_PATH="${CLIENT_ROOT}/.envrc"
 
@@ -153,6 +155,12 @@ elif [[ -f "${MCP_JSON_PATH}" && "${DRY_RUN}" == "true" ]]; then
   log "Would overwrite existing ${MCP_JSON_PATH} (use --force when applying)"
 fi
 
+if [[ -f "${OPENCODE_JSON_PATH}" && "${FORCE}" != "true" && "${DRY_RUN}" != "true" ]]; then
+  fail "${OPENCODE_JSON_PATH} exists. Re-run with --force to overwrite."
+elif [[ -f "${OPENCODE_JSON_PATH}" && "${DRY_RUN}" == "true" ]]; then
+  log "Would overwrite existing ${OPENCODE_JSON_PATH} (use --force when applying)"
+fi
+
 if [[ -f "${PGLS_CONFIG_PATH}" && "${FORCE}" != "true" && "${DRY_RUN}" != "true" ]]; then
   fail "${PGLS_CONFIG_PATH} exists. Re-run with --force to overwrite."
 elif [[ -f "${PGLS_CONFIG_PATH}" && "${DRY_RUN}" == "true" ]]; then
@@ -173,6 +181,26 @@ MCP_CONTENT="$(cat <<EOF
 EOF
 )"
 
+OPENCODE_CONTENT="$(cat <<EOF
+{
+  "\$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "postgres-readonly": {
+      "type": "local",
+      "command": [
+        "/bin/bash",
+        "${TOOLKIT_ROOT}/tools/postgres-readonly/run.sh"
+      ],
+      "environment": {
+        "CLIENT_ROOT": "${CLIENT_ROOT}"
+      },
+      "enabled": true
+    }
+  }
+}
+EOF
+)"
+
 PGLS_CONTENT="$(cat <<EOF
 {
   "\$schema": "https://pg-language-server.com/latest/schema.json",
@@ -184,6 +212,7 @@ EOF
 )"
 
 write_file "${MCP_JSON_PATH}" "${MCP_CONTENT}"
+write_file "${OPENCODE_JSON_PATH}" "${OPENCODE_CONTENT}"
 write_file "${PGLS_CONFIG_PATH}" "${PGLS_CONTENT}"
 
 # --- Copy Cursor rule templates ---

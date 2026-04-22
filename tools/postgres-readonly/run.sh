@@ -47,7 +47,7 @@ if [[ ! -d "${VENV_DIR}" ]]; then
   fi
 fi
 
-if ! "${VENV_DIR}/bin/python" -c "import mcp, psycopg" >/dev/null 2>&1; then
+if ! "${VENV_DIR}/bin/python" -c "import mcp.server.fastmcp, psycopg" >/dev/null 2>&1; then
   rm -f "${BOOTSTRAP_MARKER}"
 fi
 

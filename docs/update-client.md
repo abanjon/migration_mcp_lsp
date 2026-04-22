@@ -30,6 +30,7 @@ Use this flow for:
 - new or changed Cursor rules under `templates/.cursor/rules`
 - updates to `tools/lsp/*`
 - updates to `.cursor/mcp.json`
+- updates to `opencode.json`
 - updates to generated `postgres-language-server.jsonc`
 
 Re-initialize only if the submodule itself is broken or missing.
@@ -95,7 +96,7 @@ git commit -m "chore: update portable-lsp-mcp-toolkit"
 
 ## 3) Re-run Bootstrap
 
-The bootstrap script copies Cursor rule templates, wires `.cursor/mcp.json`, and regenerates `postgres-language-server.jsonc`. Re-running it picks up any new or changed files from the updated toolkit.
+The bootstrap script copies Cursor rule templates, wires `.cursor/mcp.json` and `opencode.json`, and regenerates `postgres-language-server.jsonc`. Re-running it picks up any new or changed files from the updated toolkit.
 
 ```bash
 bash "XX - utils/portable-lsp-mcp-toolkit/scripts/bootstrap-client.sh" \
@@ -172,6 +173,7 @@ Then follow steps 3–5 above.
 | Toolkit scripts/config under submodule | Yes | No | Comes from updated submodule commit |
 | `.cursor/rules/*.mdc` | No | Yes (`--force`) | Copied from toolkit templates |
 | `.cursor/mcp.json` | No | Yes (`--force`) | MCP server wiring |
+| `opencode.json` | No | Yes (`--force`) | OpenCode MCP server wiring |
 | `postgres-language-server.jsonc` | No | Yes (`--force`) | Zed LSP config |
 | `.envrc` | No | No — manual | Bootstrap only warns about missing vars |
 | `~/.pgpass` | No | No — use `setup-readonly-role.sh --update-pgpass` | Only needed if credentials changed |

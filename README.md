@@ -2,7 +2,7 @@
 
 Reusable, service-first PostgreSQL tooling for:
 - SQL linting/type checks in editors via Postgres Language Server (LSP)
-- read-only database access for Cursor MCP tools
+- read-only database access for Cursor and OpenCode MCP tools
 
 This is intended to be shared across client repos (usually via git submodule).
 
@@ -108,6 +108,7 @@ What it checks:
 
 What it writes/updates:
 - `<client>/.cursor/mcp.json`
+- `<client>/opencode.json`
 - `<client>/postgres-language-server.jsonc`
 - does not modify `<client>/.envrc` (create this manually first)
 
