@@ -46,6 +46,8 @@ EOF
 
 ## 4) Generate readonly role SQL, update `~/.pgpass`, and apply grants
 
+Run 'direnv allow' first.
+
 ```bash
 bash "XX - utils/portable-lsp-mcp-toolkit/scripts/setup-readonly-role.sh" \
   --client-root "$PWD" \
@@ -54,7 +56,7 @@ bash "XX - utils/portable-lsp-mcp-toolkit/scripts/setup-readonly-role.sh" \
   --apply
 ```
 
-## 5) Bootstrap repo wiring (`.cursor/mcp.json`, `opencode.json`, `postgres-language-server.jsonc`)
+## 5) Bootstrap repo wiring (`.cursor/mcp.json`, `.codex/config.toml`, `opencode.json`, `postgres-language-server.jsonc`)
 
 ```bash
 bash "XX - utils/portable-lsp-mcp-toolkit/scripts/bootstrap-client.sh" \
@@ -86,7 +88,9 @@ psql "service=client_ai_ro" -c "select current_user, current_database();"
 
 # Confirm readonly behavior
 psql "service=client_ai_ro" -c "create table _should_fail(id int);"
-```
 
+# After trusting the project in Codex, confirm its project MCP config is loaded
+codex mcp list
+```
 
 

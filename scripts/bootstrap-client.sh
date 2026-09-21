@@ -24,6 +24,7 @@ Options:
 
 This script writes:
   - <client>/.cursor/mcp.json
+  - <client>/.codex/config.toml
   - <client>/opencode.json
   - <client>/postgres-language-server.jsonc
 This script does not write <client>/.envrc.
@@ -118,9 +119,10 @@ if ! python3 "${TOOLKIT_ROOT}/tools/lib/resolve_pg_env.py" --service "${PGROSERV
   fail "Failed to resolve MCP env for PGROSERVICE=${PGROSERVICE_NAME}"
 fi
 
-mkdir -p "${CLIENT_ROOT}/.cursor"
+mkdir -p "${CLIENT_ROOT}/.cursor" "${CLIENT_ROOT}/.codex"
 
 MCP_JSON_PATH="${CLIENT_ROOT}/.cursor/mcp.json"
+CODEX_CONFIG_PATH="${CLIENT_ROOT}/.codex/config.toml"
 OPENCODE_JSON_PATH="${CLIENT_ROOT}/opencode.json"
 PGLS_CONFIG_PATH="${CLIENT_ROOT}/postgres-language-server.jsonc"
 ENVRC_PATH="${CLIENT_ROOT}/.envrc"
@@ -155,6 +157,12 @@ elif [[ -f "${MCP_JSON_PATH}" && "${DRY_RUN}" == "true" ]]; then
   log "Would overwrite existing ${MCP_JSON_PATH} (use --force when applying)"
 fi
 
+if [[ -f "${CODEX_CONFIG_PATH}" && "${FORCE}" != "true" && "${DRY_RUN}" != "true" ]]; then
+  fail "${CODEX_CONFIG_PATH} exists. Re-run with --force to overwrite."
+elif [[ -f "${CODEX_CONFIG_PATH}" && "${DRY_RUN}" == "true" ]]; then
+  log "Would overwrite existing ${CODEX_CONFIG_PATH} (use --force when applying)"
+fi
+
 if [[ -f "${OPENCODE_JSON_PATH}" && "${FORCE}" != "true" && "${DRY_RUN}" != "true" ]]; then
   fail "${OPENCODE_JSON_PATH} exists. Re-run with --force to overwrite."
 elif [[ -f "${OPENCODE_JSON_PATH}" && "${DRY_RUN}" == "true" ]]; then
@@ -178,6 +186,19 @@ MCP_CONTENT="$(cat <<EOF
     }
   }
 }
+EOF
+)"
+
+CODEX_CONTENT="$(cat <<EOF
+[mcp_servers.postgres-readonly]
+command = "/bin/bash"
+args = ["${TOOLKIT_ROOT}/tools/postgres-readonly/run.sh"]
+cwd = "${CLIENT_ROOT}"
+startup_timeout_sec = 60
+enabled = true
+
+[mcp_servers.postgres-readonly.env]
+CLIENT_ROOT = "${CLIENT_ROOT}"
 EOF
 )"
 
@@ -212,6 +233,7 @@ EOF
 )"
 
 write_file "${MCP_JSON_PATH}" "${MCP_CONTENT}"
+write_file "${CODEX_CONFIG_PATH}" "${CODEX_CONTENT}"
 write_file "${OPENCODE_JSON_PATH}" "${OPENCODE_CONTENT}"
 write_file "${PGLS_CONFIG_PATH}" "${PGLS_CONTENT}"
 
@@ -239,4 +261,5 @@ fi
 log "Bootstrap completed for: ${CLIENT_ROOT}"
 log "Next: run 'direnv allow \"${CLIENT_ROOT}\"' from your shell."
 log "Note: bootstrap-client.sh does not modify ${ENVRC_PATH}."
+log "Codex loads ${CODEX_CONFIG_PATH} after the project is trusted."
 log "In Zed, point SQL LSP binary to '${TOOLKIT_ROOT}/tools/lsp/run-pgls.sh' if not already configured."

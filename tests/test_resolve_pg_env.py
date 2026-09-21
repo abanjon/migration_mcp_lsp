@@ -17,6 +17,7 @@ import pytest
 
 TOOLKIT_ROOT = Path(__file__).resolve().parent.parent
 RESOLVER = TOOLKIT_ROOT / "tools" / "lib" / "resolve_pg_env.py"
+BOOTSTRAP = TOOLKIT_ROOT / "scripts" / "bootstrap-client.sh"
 FIXTURES = TOOLKIT_ROOT / "tests" / "fixtures"
 
 
@@ -176,3 +177,46 @@ class TestResolvePgEnvErrors:
 
         with pytest.raises(subprocess.CalledProcessError):
             run_resolver(tmp_path, "any_service", "lsp")
+
+
+def test_bootstrap_generates_codex_mcp_config(fake_home: Path, tmp_path: Path) -> None:
+    client_root = tmp_path / "client"
+    client_root.mkdir()
+    (client_root / ".envrc").write_text(
+        'export PGSERVICE="test_admin"\n'
+        'export PGROSERVICE="test_readonly"\n'
+        'export PGLSP_CONFIG="$PWD/postgres-language-server.jsonc"\n'
+    )
+
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    direnv = fake_bin / "direnv"
+    direnv.write_text("#!/bin/sh\nexit 0\n")
+    direnv.chmod(0o755)
+
+    subprocess.run(
+        [
+            "bash",
+            str(BOOTSTRAP),
+            "--client-root",
+            str(client_root),
+            "--pgservice",
+            "test_admin",
+            "--pgroservice",
+            "test_readonly",
+            "--force",
+        ],
+        env={
+            **os.environ,
+            "HOME": str(fake_home),
+            "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}",
+        },
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    config = (client_root / ".codex" / "config.toml").read_text()
+    assert "[mcp_servers.postgres-readonly]" in config
+    assert f'cwd = "{client_root}"' in config
+    assert f'CLIENT_ROOT = "{client_root}"' in config

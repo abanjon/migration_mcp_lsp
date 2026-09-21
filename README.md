@@ -2,7 +2,7 @@
 
 Reusable, service-first PostgreSQL tooling for:
 - SQL linting/type checks in editors via Postgres Language Server (LSP)
-- read-only database access for Cursor and OpenCode MCP tools
+- read-only database access for Cursor, OpenCode, and Codex MCP tools
 
 This is intended to be shared across client repos (usually via git submodule).
 
@@ -108,6 +108,7 @@ What it checks:
 
 What it writes/updates:
 - `<client>/.cursor/mcp.json`
+- `<client>/.codex/config.toml`
 - `<client>/opencode.json`
 - `<client>/postgres-language-server.jsonc`
 - does not modify `<client>/.envrc` (create this manually first)
@@ -167,6 +168,7 @@ Commands:
 - `uv` (recommended)
 - `postgres-language-server` binary (or configured `PGLS_BIN`)
 - `psql` (needed for `setup-readonly-role.sh --apply`)
+- Codex CLI (needed only to use the generated `.codex/config.toml`)
 
 ## Troubleshooting
 
@@ -178,6 +180,8 @@ Commands:
   - run `direnv allow`.
 - MCP starts but queries fail auth
   - verify readonly role password and `~/.pgpass` entry.
+- Codex does not list the MCP server
+  - trust the project, then run `codex mcp list` from the project root.
 - LSP not connecting
   - verify Zed binary path points to toolkit `tools/lsp/run-pgls.sh`.
 
